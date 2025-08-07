@@ -1,0 +1,21 @@
+{
+  "description": "Sample CSV format for student data upload",
+  "format": "Roll Number, Name",
+  "examples": [
+    "CB.SC.U4CSE24124,John Doe",
+    "CB.SC.U4CSE24025,Jane Smith", 
+    "CB.SC.U4CSE24201,Alice Johnson",
+    "CB.SC.U4ECE24156,Bob Wilson",
+    "CB.SC.U4EEE24089,Carol Brown"
+  ],
+  "parsing_logic": {
+    "campus": "First 2 characters (CB = Coimbatore)",
+    "school": "Characters 3-4 (SC = School of Computing)", 
+    "programme": "Characters 6-7 (U4 = Undergrad 4-year)",
+    "department": "Characters 8-10 (CSE = Computer Science)",
+    "year": "Characters 11-12 (24 = 2024)",
+    "section": "Character 13 (0=A, 1=B, 2=C, etc.)",
+    "class_roll": "Characters 14-15 (actual roll number in class)",
+    "email": "lowercase_roll_number@cb.students.amrita.edu"
+  }
+}

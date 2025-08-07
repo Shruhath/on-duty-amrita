@@ -1,0 +1,98 @@
+{
+  "title": "Firestore Database Setup Instructions",
+  "description": "Step-by-step guide to set up the Firestore database for the OD Marking App",
+  "steps": [
+    {
+      "step": 1,
+      "title": "Create Firestore Database",
+      "description": "Go to Firebase Console > Firestore Database > Create database",
+      "details": [
+        "Choose 'Start in test mode' initially",
+        "Select your preferred region",
+        "Click 'Done' to create the database"
+      ]
+    },
+    {
+      "step": 2,
+      "title": "Set Up Collections",
+      "description": "Create the required collections with sample documents",
+      "collections": [
+        {
+          "name": "users",
+          "description": "Store user profiles and roles",
+          "sampleDoc": "Use the sample data from seed-data.sql"
+        },
+        {
+          "name": "events",
+          "description": "Store event information",
+          "sampleDoc": "Create events like 'Tech Fest 2024'"
+        },
+        {
+          "name": "od_requests",
+          "description": "Store OD requests from students",
+          "sampleDoc": "Will be created when students submit requests"
+        },
+        {
+          "name": "scan_logs",
+          "description": "Store NFC scan logs",
+          "sampleDoc": "Will be created when coordinators scan student IDs"
+        },
+        {
+          "name": "departments",
+          "description": "Store department information",
+          "sampleDoc": "Create departments like CS, EC, ME, etc."
+        },
+        {
+          "name": "time_slots",
+          "description": "Store time slot definitions",
+          "sampleDoc": "Create slots 1-13 with time ranges"
+        }
+      ]
+    },
+    {
+      "step": 3,
+      "title": "Configure Security Rules",
+      "description": "Apply the security rules from firestore-security-rules.json",
+      "details": [
+        "Go to Firestore Database > Rules",
+        "Replace the default rules with the rules from firestore-security-rules.json",
+        "Click 'Publish' to apply the rules"
+      ]
+    },
+    {
+      "step": 4,
+      "title": "Create Composite Indexes",
+      "description": "Set up indexes for optimized queries",
+      "details": [
+        "Go to Firestore Database > Indexes",
+        "Create composite indexes as specified in firestore-indexes.sql",
+        "These will be automatically suggested when you run queries"
+      ]
+    },
+    {
+      "step": 5,
+      "title": "Seed Initial Data",
+      "description": "Add sample data for testing",
+      "details": [
+        "Use the Firebase Console to manually add documents",
+        "Or use the Firebase Admin SDK to bulk import data",
+        "Follow the structure defined in seed-data.sql"
+      ]
+    }
+  ],
+  "security_features": [
+    "Role-based access control",
+    "Department-level data isolation",
+    "User can only access their own data",
+    "Teachers can view students in their department",
+    "Admins have full access",
+    "Coordinators can manage events and scan logs"
+  ],
+  "optimization_features": [
+    "Composite indexes for complex queries",
+    "Denormalized data for faster reads",
+    "Efficient pagination support",
+    "Optimized for mobile app usage",
+    "Minimal data transfer"
+  ]
+}

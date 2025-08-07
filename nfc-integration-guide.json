@@ -1,0 +1,70 @@
+{
+  "nfc_integration": {
+    "description": "Guide for integrating real NFC scanning functionality",
+    "current_implementation": "Simulated NFC scanning for demonstration",
+    "real_implementation_steps": [
+      {
+        "step": 1,
+        "title": "Enable Web NFC API",
+        "description": "Use the Web NFC API for browser-based NFC reading",
+        "code_example": "navigator.nfc.scan()"
+      },
+      {
+        "step": 2,
+        "title": "Handle NFC Tag Data",
+        "description": "Parse student roll number from NFC tag data",
+        "data_format": "Roll number stored as text on NFC tag"
+      },
+      {
+        "step": 3,
+        "title": "Validate Student",
+        "description": "Check if scanned roll number exists in students collection",
+        "validation": "Query Firestore students collection"
+      },
+      {
+        "step": 4,
+        "title": "Record Attendance",
+        "description": "Save scan log with timestamp and slot information",
+        "collection": "scan_logs"
+      }
+    ],
+    "browser_support": {
+      "chrome_android": "Supported",
+      "firefox": "Not supported",
+      "safari": "Not supported",
+      "note": "Web NFC is primarily supported on Chrome for Android"
+    },
+    "alternative_solutions": [
+      {
+        "method": "QR Code Scanning",
+        "description": "Use camera to scan QR codes instead of NFC",
+        "implementation": "Use libraries like qr-scanner"
+      },
+      {
+        "method": "Manual Entry",
+        "description": "Allow manual roll number entry as fallback",
+        "implementation": "Text input with validation"
+      },
+      {
+        "method": "Barcode Scanning",
+        "description": "Use student ID card barcodes",
+        "implementation": "Camera-based barcode scanning"
+      }
+    ]
+  },
+  "current_simulation": {
+    "mock_data": {
+      "rollNumber": "CB.SC.U4CSE24124",
+      "studentName": "John Doe",
+      "scan_delay": "2 seconds",
+      "success_rate": "100% (simulated)"
+    },
+    "features": [
+      "Real-time slot detection",
+      "Scan result logging",
+      "Success/error handling",
+      "Firestore integration",
+      "Coordinator tracking"
+    ]
+  }
+}

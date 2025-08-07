@@ -1,0 +1,36 @@
+{
+  "firebaseConfig": {
+    "apiKey": "your-api-key",
+    "authDomain": "your-project.firebaseapp.com",
+    "projectId": "your-project-id",
+    "storageBucket": "your-project.appspot.com",
+    "messagingSenderId": "123456789",
+    "appId": "your-app-id"
+  },
+  "collections": [
+    {
+      "name": "users",
+      "description": "User authentication and profile data"
+    },
+    {
+      "name": "students",
+      "description": "Student database with roll number as document ID"
+    },
+    {
+      "name": "studentcoordinator",
+      "description": "Student coordinators assigned to events"
+    },
+    {
+      "name": "ODs",
+      "description": "On-duty entries for students"
+    },
+    {
+      "name": "events",
+      "description": "Events and activities"
+    }
+  ],
+  "securityRules": {
+    "description": "Firestore security rules for role-based access control",
+    "file": "firestore-security-rules.json"
+  }
+}

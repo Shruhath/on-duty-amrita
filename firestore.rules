@@ -1,0 +1,94 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && getUserData().role == 'admin';
+    }
+    
+    function isTeacher() {
+      return isAuthenticated() && getUserData().role == 'teacher';
+    }
+    
+    function isCoordinator() {
+      return isAuthenticated() && (getUserData().role == 'coordinator' || getUserData().role == 'studentcord');
+    }
+    
+    function isStudent() {
+      return isAuthenticated() && getUserData().role == 'student';
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read, write: if isAdmin();
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      allow read: if isTeacher();
+      allow read: if isCoordinator();
+    }
+
+    // Students collection (for roll number parsing and student data)
+    match /students/{studentId} {
+      allow read, write: if isAdmin();
+      allow read: if isTeacher();
+      allow read: if isCoordinator();
+      allow read: if isStudent() && getUserData().rollNumber == studentId;
+    }
+
+    // Events collection
+    match /events/{eventId} {
+      allow read, write: if isAdmin();
+      allow read: if isAuthenticated();
+      allow write: if isCoordinator();
+    }
+
+    // ODs collection (new structure - one document per roll number)
+    match /ODs/{rollNumber} {
+      allow read, write: if isAdmin();
+      allow read: if isTeacher();
+      allow read, write: if isCoordinator();
+      allow read: if isStudent() && getUserData().rollNumber == rollNumber;
+    }
+
+    // OD Requests collection (legacy structure)
+    match /od_requests/{requestId} {
+      allow read, write: if isAdmin();
+      allow read: if isTeacher();
+      allow read, write: if isCoordinator();
+      allow read, write: if isStudent() && resource.data.userId == request.auth.uid;
+    }
+
+    // Scan Logs collection
+    match /scan_logs/{logId} {
+      allow read, write: if isAdmin();
+      allow read: if isTeacher();
+      allow read, write: if isCoordinator();
+      allow read: if isStudent() && resource.data.userId == request.auth.uid;
+    }
+
+    // Departments collection
+    match /departments/{deptId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Time Slots collection
+    match /time_slots/{slotId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Default deny rule
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
