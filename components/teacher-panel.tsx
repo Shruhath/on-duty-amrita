@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useState } from "react"
 import { useAuth } from "@/hooks/useAuth"
-import { getODEntriesForStudent } from "@/lib/od-operations"
+import { getODEntriesForStudent, getODEntriesByEventAndDate, isAfter5PM } from "@/lib/od-operations"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -13,7 +13,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
-import { Search, LogOut, FileText, Users, CheckCircle, AlertCircle } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { Search, LogOut, FileText, Users, CheckCircle, AlertCircle, Download, Clock } from "lucide-react"
+import * as XLSX from "xlsx"
 
 interface SearchFilters {
   rollNumber: string
@@ -33,6 +46,15 @@ export function TeacherPanel() {
   const [searchResults, setSearchResults] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState({ type: "", text: "" })
+  
+  // OD Export states
+  const [exportDialogOpen, setExportDialogOpen] = useState(false)
+  const [exportFilters, setExportFilters] = useState({
+    eventName: "",
+    date: "",
+  })
+  const [exportResults, setExportResults] = useState<any>(null)
+  const [exportLoading, setExportLoading] = useState(false)
 
   const showMessage = (type: "success" | "error", text: string) => {
     setMessage({ type, text })
@@ -129,6 +151,83 @@ export function TeacherPanel() {
     return slotTimes[slot] || `Slot ${slot}`
   }
 
+  // Handle OD export search
+  const handleExportSearch = async () => {
+    if (!exportFilters.eventName || !exportFilters.date) {
+      showMessage("error", "Please select both event and date")
+      return
+    }
+
+    setExportLoading(true)
+    try {
+      const result = await getODEntriesByEventAndDate(exportFilters.eventName, exportFilters.date)
+      
+      if (result.success) {
+        setExportResults(result.data)
+        showMessage("success", result.message)
+      } else {
+        setExportResults([])
+        showMessage("error", result.message)
+      }
+    } catch (error: any) {
+      setExportResults([])
+      showMessage("error", `Error fetching OD entries: ${error.message}`)
+    } finally {
+      setExportLoading(false)
+    }
+  }
+
+  // Handle Excel export
+  const handleExcelExport = () => {
+    if (!exportResults || exportResults.length === 0) {
+      showMessage("error", "No data to export")
+      return
+    }
+
+    try {
+      const exportData = exportResults.map((entry: any, index: number) => ({
+        "S.No": index + 1,
+        "Roll Number": entry.rollNumber,
+        "Student Name": entry.studentName,
+        "Department": entry.department,
+        "Section": entry.section,
+        "Slot": entry.slot,
+        "Slot Time": getSlotTimeRange(entry.slot),
+        "Coordinator": entry.coordinatorName || "N/A",
+        "Created At": new Date(entry.createdAt).toLocaleString(),
+      }))
+
+      const worksheet = XLSX.utils.json_to_sheet(exportData)
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, "OD List")
+      
+      // Generate filename with event and date
+      const filename = `OD_List_${exportFilters.eventName.replace(/\s+/g, "_")}_${exportFilters.date}.xlsx`
+      XLSX.writeFile(workbook, filename)
+      
+      showMessage("success", `Excel file downloaded: ${filename}`)
+      setExportDialogOpen(false)
+    } catch (error: any) {
+      showMessage("error", `Error exporting to Excel: ${error.message}`)
+    }
+  }
+
+  // Check if export is available (after 5 PM)
+  const isExportAvailable = () => {
+    return isAfter5PM()
+  }
+
+  // Get available events
+  const getAvailableEvents = () => {
+    return [
+      "Procession",
+      "Campus Decoration",
+      "Float",
+      "Culturals",
+      "General",
+    ]
+  }
+
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
@@ -162,9 +261,23 @@ export function TeacherPanel() {
         </div>
       )}
 
-      <div className="p-4 space-y-6">
-        {/* Search Filters */}
-        <Card className="border-2 border-black">
+      <div className="p-4">
+        <Tabs defaultValue="search" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsTrigger value="search" className="flex items-center gap-2">
+              <Search className="h-4 w-4" />
+              Search Student ODs
+            </TabsTrigger>
+            <TabsTrigger value="export" className="flex items-center gap-2">
+              <Download className="h-4 w-4" />
+              Export OD Lists
+              {!isExportAvailable() && <Clock className="h-3 w-3 text-orange-500" />}
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Search Tab */}
+          <TabsContent value="search" className="space-y-6">
+            <Card className="border-2 border-black">
           <CardHeader className="border-b-2 border-black bg-gray-50">
             <CardTitle className="text-black flex items-center gap-2">
               <Search className="h-5 w-5" />
@@ -401,6 +514,180 @@ export function TeacherPanel() {
             )}
           </CardContent>
         </Card>
+          </TabsContent>
+
+          {/* Export Tab */}
+          <TabsContent value="export" className="space-y-6">
+            <Card className="border-2 border-black">
+              <CardHeader className="border-b-2 border-black bg-gray-50">
+                <CardTitle className="text-black flex items-center gap-2">
+                  <Download className="h-5 w-5" />
+                  Export OD Lists by Event & Date
+                  {!isExportAvailable() && (
+                    <Badge variant="outline" className="ml-2 text-orange-600 border-orange-600">
+                      Available after 5 PM
+                    </Badge>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6">
+                {!isExportAvailable() ? (
+                  <div className="bg-orange-50 p-4 rounded border-2 border-orange-200 mb-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Clock className="h-5 w-5 text-orange-600" />
+                      <h4 className="font-bold text-orange-800">Export Available After 5 PM</h4>
+                    </div>
+                    <p className="text-sm text-orange-700">
+                      OD list exports are only available after 5:00 PM to ensure all attendance data is complete for the day.
+                    </p>
+                    <p className="text-xs text-orange-600 mt-2">
+                      Current time: {new Date().toLocaleTimeString()}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-green-50 p-4 rounded border-2 border-green-200 mb-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <CheckCircle className="h-5 w-5 text-green-600" />
+                      <h4 className="font-bold text-green-800">Export Available</h4>
+                    </div>
+                    <p className="text-sm text-green-700">
+                      You can now export OD lists by event and date. Select an event and date to view and download the list.
+                    </p>
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="export-event" className="text-black font-medium">
+                        Event *
+                      </Label>
+                      <Select
+                        value={exportFilters.eventName}
+                        onValueChange={(value) => setExportFilters({ ...exportFilters, eventName: value })}
+                        disabled={!isExportAvailable()}
+                      >
+                        <SelectTrigger className="border-2 border-gray-300 focus:border-black">
+                          <SelectValue placeholder="Select Event" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {getAvailableEvents().map((event) => (
+                            <SelectItem key={event} value={event}>
+                              {event}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="export-date" className="text-black font-medium">
+                        Date *
+                      </Label>
+                      <Input
+                        id="export-date"
+                        type="date"
+                        value={exportFilters.date}
+                        onChange={(e) => setExportFilters({ ...exportFilters, date: e.target.value })}
+                        className="border-2 border-gray-300 focus:border-black"
+                        disabled={!isExportAvailable()}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4">
+                    <Button
+                      onClick={handleExportSearch}
+                      disabled={exportLoading || !isExportAvailable() || !exportFilters.eventName || !exportFilters.date}
+                      className="bg-blue-600 text-white hover:bg-blue-700"
+                    >
+                      {exportLoading ? "Searching..." : "Search OD Entries"}
+                    </Button>
+                    
+                    <AlertDialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="border-green-600 text-green-600 hover:bg-green-50"
+                          disabled={!exportResults || exportResults.length === 0 || !isExportAvailable()}
+                        >
+                          <Download className="h-4 w-4 mr-2" />
+                          Export to Excel
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Export OD List to Excel</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will download an Excel file with {exportResults?.length || 0} OD entries for{" "}
+                            <strong>{exportFilters.eventName}</strong> on{" "}
+                            <strong>{new Date(exportFilters.date).toLocaleDateString()}</strong>.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleExcelExport}>
+                            Download Excel File
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+
+                  {/* Export Results Table */}
+                  {exportResults && exportResults.length > 0 && (
+                    <div className="mt-6">
+                      <h3 className="text-lg font-bold text-black mb-4">
+                        OD Entries for {exportFilters.eventName} on {new Date(exportFilters.date).toLocaleDateString()} ({exportResults.length} students)
+                      </h3>
+                      <div className="border-2 border-black rounded overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="border-b-2 border-black bg-gray-50">
+                              <TableHead className="font-bold text-black">S.No</TableHead>
+                              <TableHead className="font-bold text-black">Roll Number</TableHead>
+                              <TableHead className="font-bold text-black">Student Name</TableHead>
+                              <TableHead className="font-bold text-black">Department</TableHead>
+                              <TableHead className="font-bold text-black">Section</TableHead>
+                              <TableHead className="font-bold text-black">Slot</TableHead>
+                              <TableHead className="font-bold text-black">Slot Time</TableHead>
+                              <TableHead className="font-bold text-black">Coordinator</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {exportResults.map((entry: any, index: number) => (
+                              <TableRow key={`${entry.rollNumber}-${entry.slot}`} className="border-b border-gray-200">
+                                <TableCell>{index + 1}</TableCell>
+                                <TableCell className="font-mono text-sm">{entry.rollNumber}</TableCell>
+                                <TableCell className="font-medium">{entry.studentName}</TableCell>
+                                <TableCell>{entry.department}</TableCell>
+                                <TableCell>{entry.section}</TableCell>
+                                <TableCell>
+                                  <Badge variant="outline">{entry.slot}</Badge>
+                                </TableCell>
+                                <TableCell className="text-sm text-gray-600">
+                                  {getSlotTimeRange(entry.slot)}
+                                </TableCell>
+                                <TableCell>{entry.coordinatorName || "N/A"}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  )}
+
+                  {exportResults && exportResults.length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                      <p>No OD entries found for the selected event and date</p>
+                      <p className="text-sm mt-2">Try selecting a different event or date</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   )

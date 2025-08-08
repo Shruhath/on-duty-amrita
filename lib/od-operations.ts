@@ -228,3 +228,90 @@ export const getODCountForStudent = async (rollNumber: string): Promise<number> 
     return 0
   }
 }
+
+// Get all OD entries by event and date (for teachers)
+export const getODEntriesByEventAndDate = async (
+  eventName: string,
+  date: string
+): Promise<{
+  success: boolean
+  data: Array<{
+    rollNumber: string
+    studentName: string
+    department: string
+    section: string
+    slot: number
+    createdAt: string
+    coordinatorName?: string
+    coordinatorId?: string
+  }>
+  message: string
+}> => {
+  try {
+    const { collection, getDocs } = await import("firebase/firestore")
+    
+    // Get all OD documents
+    const odsCollection = collection(db, "ODs")
+    const snapshot = await getDocs(odsCollection)
+    
+    const matchingEntries: Array<{
+      rollNumber: string
+      studentName: string
+      department: string
+      section: string
+      slot: number
+      createdAt: string
+      coordinatorName?: string
+      coordinatorId?: string
+    }> = []
+
+    snapshot.forEach((doc) => {
+      const data = doc.data()
+      const { rollNumber, studentName, department, section, createdAt, ...entries } = data
+
+      // Check each OD entry in the document
+      Object.entries(entries).forEach(([timestamp, entry]: [string, any]) => {
+        if (entry.date === date && entry.eventName === eventName) {
+          matchingEntries.push({
+            rollNumber,
+            studentName,
+            department,
+            section,
+            slot: entry.slot,
+            createdAt: entry.createdAt,
+            coordinatorName: entry.coordinatorName,
+            coordinatorId: entry.coordinatorId,
+          })
+        }
+      })
+    })
+
+    // Sort by department, then by roll number
+    matchingEntries.sort((a, b) => {
+      if (a.department !== b.department) {
+        return a.department.localeCompare(b.department)
+      }
+      return a.rollNumber.localeCompare(b.rollNumber)
+    })
+
+    return {
+      success: true,
+      data: matchingEntries,
+      message: `Found ${matchingEntries.length} OD entries for ${eventName} on ${date}`,
+    }
+  } catch (error: any) {
+    console.error("Error fetching OD entries by event and date:", error)
+    return {
+      success: false,
+      data: [],
+      message: `Error: ${error.message}`,
+    }
+  }
+}
+
+// Check if current time is after 5 PM
+export const isAfter5PM = (): boolean => {
+  const now = new Date()
+  const currentHour = now.getHours()
+  return currentHour >= 17 // 5 PM or later
+}
